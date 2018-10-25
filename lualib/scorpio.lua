@@ -2,179 +2,147 @@ local scorpio = require "scorpio.core"
 local socket = require "scorpio.socket"
 
 local tasks = {}
+local waiting = {}
 
 local M = {
+	delay = 100,
 	alive = true,
-	delay = 200,
+	socket = setmetatable({}, {__index = socket})
 }
 
 function M.hint( name, value )
-	if not M[name] then
-		error(string.format("scorpio don't has this property:%s", tostring(name)))
-	else
-		M[name] = value
-	end
+	local property = {
+		delay = 1,
+	}
+	assert(property[name] and type(property[name]) == type(value),
+		'invalid property name or value type')
+	
+	M[name] = value
 end
-
-
-function M.fork(func)
-	local co = coroutine.wrap(func)
-	table.insert(tasks, co)
-end
-
 
 function M.exit()
 	M.alive = false
 end
 
-
-local function client_socket( fd, addr )
-
-	local self = {
-		fd = fd,
-		addr = addr,
-		handler = {},
-
-		connected = true,
-	}
-
-	function self:on(name, func)
-		self.handler[name] = func
+function M.fork(f, ...)
+	local co = coroutine.wrap(f)
+	local args = {...}
+	local task = function ( )
+		return co, co(table.unpack(args))
 	end
+	table.insert(tasks, task)
+end
 
-	function self:send( str )
-		if connected == false then
-			print("failed to send this sock has closed")
-		else
-			socket.send(self.fd, str)
-		end
+function M.socket.listen(...)
+	return socket.setnonblocking(assert(socket.listen(...)))
+end
+
+function M.socket.accept(listen_fd)
+	local fd, addr, err = socket.accept(listen_fd)
+	if err == 'timeout' then
+		return coroutine.yield('accept', listen_fd)
+	else
+		return fd and socket.setnonblocking(fd), addr, err
 	end
+end
 
-	setmetatable(self, {__call = function (_, name, ...)
-		local f = self.handler[name]
-		if f then
-			f(...)
-		end
-	end})
-
-
-	M.fork(function ( )
-			
-		socket.setnonblocking(fd)
-
-		while true do
-			if M.alive == false then
-				coroutine.yield(1)
-			end
-
-			local str, err = socket.recv(fd)
-
-			if str == "" then
-				self.connected = false
-				self("close")
-				coroutine.yield(1)
-			else
-				if err then
-					if err == "timeout" then
-						coroutine.yield()
-					else
-						socket.close(fd)
-						self("error", err)
-						coroutine.yield(1)
-					end
-				else
-					self("message", str)
-				end
-			end
-		end
-	end)
-
-	return self
+function M.socket.recv(fd)
+	local msg, err = socket.recv(fd)
+	if err == 'timeout' then
+		return coroutine.yield('recv', fd)
+	else
+		return msg, err
+	end
 end
 
 
-function M.server( host, port)
-
-	local self = {
-		host = host,
-		port = port,
-		handler = {},
-
-		fd = nil,
-	}
-
-	function self:on(name, func)
-		self.handler[name] = func
-	end
-
-	setmetatable(self, {__call = function (_, name, ...)
-		local f = self.handler[name]
-		if f then
-			f(...)
-		end
-	end})
 
 
-	M.fork(function ()
-		local fd = assert(socket.listen(host, port))
-		socket.setnonblocking(fd)
 
-		self.fd = fd
-		while true do
+function M.start()
 
-			if M.alive == false then
-				coroutine.yield(1)
-			end
+	local wait = {}
 
-			local id, addr, err = socket.accept(fd)
-
-			if not err then
-				self("connection", client_socket(id, addr))
-			else
-				if err == "timeout" then
-					coroutine.yield()
-				else
+	function wait:accept(fd)
+		table.insert(waiting, function (exit)
+			if exit then
+				return function ( )
 					socket.close(fd)
-					self("error", err)
-					coroutine.yield(1)
 				end
 			end
+
+			local fd, addr, err = socket.accept(fd)
+			if fd or err ~= 'timeout' then
+				table.insert(tasks, function ( )
+					return self, self(fd and socket.setnonblocking(fd), addr, err)
+				end)
+				return true
+			end
+		end)
+	end
+
+	function wait:recv(fd)
+		table.insert(waiting, function (exit)
+
+			if exit then
+				return function ( )
+					socket.close(fd)
+				end
+			end
+
+			local msg, err = socket.recv(fd)
+			if msg or err ~= 'timeout' then
+				table.insert(tasks, function ()
+					return self, self(msg, err)
+				end)
+				return true
+			end
+		end)
+	end
+
+
+	local function after(co, name, ...)
+		if name then
+			assert(wait[name])(co, ...)
+		else
+			print("task done")
 		end
-	end)
-
-	return self
-end
-
-
-function M.start(start_func)
-	if start_func then
-		start_func()
 	end
 
 	while true do
 		scorpio.sleep(M.delay)
+		
+		if #tasks == 0 and #waiting == 0 then
+			break
+		end
+
+		while true do
+			if #tasks == 0 then break end
+			local task = table.remove(tasks, 1)
+			after(task())
+		end
+
+		if M.alive == false then
+			for _,exit in ipairs(waiting) do
+				exit(true)()
+			end
+			break
+		end
 
 		local i = 1
 		while true do
-
-			if tasks[i] == nil then
-				if tasks[1] == nil then
-					goto _end
-				end
-				break
-			end
-
-			-- if co yield value means it's done
-			local done = tasks[i]()
-			if done then
-				table.remove(tasks, i)
+			if waiting[i] == nil then break end
+			local over = waiting[i]()
+			if over == true then
+				table.remove(waiting, i)
 			else
 				i = i + 1
-			end			
+			end
 		end
 	end
-::_end::
+
 	print('bye')
 end
+
 
 return M
