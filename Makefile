@@ -11,6 +11,7 @@ LUALIB = \
 	lua_core.c \
 	lua_serialize.c \
 	lua_socket.c \
+	lua_epoll.c \
 
 
 .PHONY : scorpio	
