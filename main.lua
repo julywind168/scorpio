@@ -21,8 +21,8 @@ listener.on('connection', function (conn)
 end)
 
 
-local t1 = scorpio.timer(1000, function ( count )
-	print('timeout', count, os.time())
+local t1 = scorpio.timer(100, function ( count )
+	print('timeout', count, scorpio.time()..' ms')
 end, 5)
 
 

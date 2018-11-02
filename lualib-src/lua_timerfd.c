@@ -31,7 +31,7 @@ l_settime(lua_State *L) {
 
 	struct itimerspec timer;
 	time_t sec = delay/1000;
-	long nsec = 0;
+	long nsec = 1000000 *(delay%1000);
 
 	timer.it_interval.tv_sec = sec;
 	timer.it_interval.tv_nsec = nsec;

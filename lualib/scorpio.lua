@@ -177,4 +177,4 @@ function M.start( func )
 end
 
 
-return M
+return setmetatable(M, {__index = scorpio})
