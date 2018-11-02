@@ -8,6 +8,7 @@
 #include "lua_serialize.h"
 #include "lua_socket.h"
 #include "lua_epoll.h"
+#include "lua_timerfd.h"
 
 
 int main(int argc, char const *argv[])
@@ -27,6 +28,9 @@ int main(int argc, char const *argv[])
 	lua_pop(L, 1);
 
 	luaL_requiref(L, "scorpio.socket", lua_lib_socket, 0);
+	lua_pop(L, 1);
+
+	luaL_requiref(L, "scorpio.timerfd", lua_lib_timerfd, 0);
 	lua_pop(L, 1);
 
 	luaL_requiref(L, "scorpio.epoll", lua_lib_epoll, 0);
