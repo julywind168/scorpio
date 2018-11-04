@@ -5,7 +5,7 @@
 	3. git clone https://github.com/HYbutterfly/scorpio.git
 	4. cd scorpio
 	5. make
-	6. ./scorpio main.lua
+	6. ./scorpio main.lua (or main2.lua(协程版))
 	7. 在另一个命令窗口 用 nc 127.0.0.1 8888 连接服务器 并输入一些内容 (发送 bye 服务器将关闭)
 ```
 

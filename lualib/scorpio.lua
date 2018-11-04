@@ -33,7 +33,8 @@ local function create_manager()
 	end
 
 	function self.remove(reader)
-		epoll.unregister(epfd, reader.fd)
+		print(epfd, reader.fd)
+		print(epoll.unregister(epfd, reader.fd))
 		readers[reader.fd] = nil
 	end
 
@@ -66,8 +67,8 @@ local function create_conntection(fd, addr)
 	}
 
 	function self.close()
-		socket.close(self.fd)
 		manager.remove(self)
+		socket.close(self.fd)
 	end
 
 	function self.send(msg)
@@ -102,8 +103,8 @@ local function create_listener(host, port, fd)
 	}
 
 	function self.close( )
-		socket.close(self.fd)
 		manager.remove(self)
+		socket.close(self.fd)
 	end
 
 	manager.add(self, function ()
@@ -135,8 +136,8 @@ local function create_timer(delay, callback, iteration)
 	}
 
 	function self.close()
-		timerfd.close(self.fd)
 		manager.remove(self)
+		timerfd.close(self.fd)
 	end
 
 	manager.add(self, function ( )
