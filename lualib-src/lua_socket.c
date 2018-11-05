@@ -29,6 +29,41 @@ int setnonblocking(int sockfd)
     return 0;
 }
 
+static int
+l_connect(lua_State *L) {
+	const char *ip;
+	int fd, port;
+	short sin_family;
+	struct sockaddr_in dest_addr;
+
+
+	ip = luaL_checkstring(L, 1);
+	port = luaL_checkinteger(L, 2);
+	sin_family = (short)luaL_optinteger(L, 3, AF_INET);
+
+	fd = socket(PF_INET, SOCK_STREAM, 0);
+	if (fd == -1) {
+		perror("socket");
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		return 2;
+	}
+
+	bzero(&dest_addr, sizeof(dest_addr));
+	dest_addr.sin_addr.s_addr = inet_addr(ip);
+	dest_addr.sin_port = htons(port);
+	dest_addr.sin_family = sin_family;
+
+	if (connect(fd, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr)) == -1) {
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		return 2;
+	}
+
+	lua_pushinteger(L, fd);
+	return 1;
+}
+
 
 static int
 l_listen(lua_State *L) {
@@ -184,6 +219,9 @@ lua_lib_socket(lua_State *L) {
 		{"send", l_send},
 		{"recv", l_recv},
 		{"close", l_close},
+
+		// client
+		{"connect", l_connect},
 	    {NULL, NULL}
 	};
 

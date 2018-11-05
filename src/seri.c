@@ -200,7 +200,7 @@ void pack_one(lua_State *L, int index, CharBuffer *buffer) {
 			pack_table(L, index, buffer);
 			break;
 		default:
-			fprintf(stderr, "scorpio error: seri unable this type: %s\n", lua_typename(L, lua_type(L, index)));
+			fprintf(stderr, "error: scorpio.pack unable this type: %s\n", lua_typename(L, lua_type(L, index)));
 			exit(1);
 			break;
 	}
