@@ -31,6 +31,7 @@ local function test_socket()
 	end)
 end
 
+
 local function test_timer( )
 	scorpio.timer(50, function ( )
 		printf('timer1: i only say once')
