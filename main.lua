@@ -7,7 +7,6 @@ local function printf(...)
 end
 
 
-
 local function test_socket()
 	scorpio.fork(function ()
 		local listener = scorpio.listen('127.0.0.1', 8888)

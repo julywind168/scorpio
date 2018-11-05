@@ -248,8 +248,6 @@ function M.listen(host, port)
 	return create_listener(fd, host, port)
 end
 
-local msg_id = 0
-
 
 function M.fork(func, run_now, ...)
 	local co = coroutine.create(func)
